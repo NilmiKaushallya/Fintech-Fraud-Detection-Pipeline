@@ -1,86 +1,116 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from datetime import datetime
+from datetime import datetime, timedelta
 import pandas as pd
 import os
+import shutil
 
+# Define Paths
+VALID_PATH = "/data/valid"
+FRAUD_PATH = "/data/fraud"
+REPORT_PATH = "/data/reports"
+WAREHOUSE_PATH = "/data/warehouse"
 
 def reconciliation():
-    valid_path = "/data/valid"
-    fraud_path = "/data/fraud"
-    report_path = "/data/reports"
+    valid_amount = 0
+    fraud_amount = 0
 
-    # Ensure report directory exists
-    os.makedirs(report_path, exist_ok=True)
-
-    valid_amount = 0.0
-    fraud_amount = 0.0
-
-    # ----------------------------
-    # Process VALID transactions
-    # ----------------------------
-    if os.path.exists(valid_path):
-        for root, _, files in os.walk(valid_path):
+    # 1. Calculate Valid Amount and "Move" to Warehouse
+    os.makedirs(WAREHOUSE_PATH, exist_ok=True)
+    
+    if os.path.exists(VALID_PATH):
+        for root, _, files in os.walk(VALID_PATH):
             for f in files:
                 if f.endswith(".parquet"):
                     file_path = os.path.join(root, f)
                     try:
                         df = pd.read_parquet(file_path)
-                        if "amount" in df.columns:
-                            valid_amount += df["amount"].sum()
+                        valid_amount += df["amount"].sum()
+                        # Simulate movement to warehouse
+                        shutil.copy(file_path, os.path.join(WAREHOUSE_PATH, f))
                     except Exception as e:
-                        print(f"Error reading {file_path}: {e}")
+                        print(f"Error reading valid file {f}: {e}")
 
-    # ----------------------------
-    # Process FRAUD transactions
-    # ----------------------------
-    if os.path.exists(fraud_path):
-        for root, _, files in os.walk(fraud_path):
+    # 2. Calculate Fraud Amount
+    if os.path.exists(FRAUD_PATH):
+        for root, _, files in os.walk(FRAUD_PATH):
             for f in files:
                 if f.endswith(".parquet"):
-                    file_path = os.path.join(root, f)
                     try:
+                        file_path = os.path.join(root, f)
                         df = pd.read_parquet(file_path)
-
-                        # Some fraud files may use 'total_amount'
-                        if "total_amount" in df.columns:
-                            fraud_amount += df["total_amount"].sum()
-                        elif "amount" in df.columns:
-                            fraud_amount += df["amount"].sum()
-
+                        # Summing 'total_amount' from Spark aggregation
+                        fraud_amount += df["total_amount"].sum()
                     except Exception as e:
-                        print(f"Error reading {file_path}: {e}")
+                        print(f"Error reading fraud file {f}: {e}")
 
-    # ----------------------------
-    # Generate reconciliation report
-    # ----------------------------
-    total_ingress = valid_amount + fraud_amount
-
+    # 3. Generate Reconciliation Report DataFrame
     report = pd.DataFrame([{
-        "Total Ingress": float(total_ingress),
-        "Validated Amount": float(valid_amount),
-        "Fraud Amount": float(fraud_amount)
+        "Run_Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "Total Ingress": valid_amount + fraud_amount,
+        "Validated Amount": valid_amount,
+        "Fraud Amount": fraud_amount
     }])
 
-    report_file = os.path.join(report_path, "reconciliation.csv")
-    report.to_csv(report_file, index=False)
+    # 4. Save with APPEND logic so logs update instead of overwrite
+    os.makedirs(REPORT_PATH, exist_ok=True)
+    csv_file = os.path.join(REPORT_PATH, "reconciliation.csv")
+    file_exists = os.path.isfile(csv_file)
 
-    print("Reconciliation report generated successfully.")
-    print(report)
+    report.to_csv(csv_file, mode='a', index=False, header=not file_exists)
+    print(f"Reconciliation successful: Total Ingress {valid_amount + fraud_amount}")
 
+def fraud_by_category():
+    all_data = []
 
-# ----------------------------
-# Airflow DAG
-# ----------------------------
+    if not os.path.exists(FRAUD_PATH):
+        print("No fraud data directory found.")
+        return
+
+    # Read all fraud parquet files
+    for root, _, files in os.walk(FRAUD_PATH):
+        for f in files:
+            if f.endswith(".parquet"):
+                try:
+                    df = pd.read_parquet(os.path.join(root, f))
+                    all_data.append(df)
+                except Exception as e:
+                    print(f"Error reading {f}: {e}")
+
+    os.makedirs(REPORT_PATH, exist_ok=True)
+    report_file = os.path.join(REPORT_PATH, "fraud_by_category.csv")
+
+    if len(all_data) == 0:
+        # Create empty template if no fraud exists
+        fraud_report = pd.DataFrame(columns=["merchant_category", "fraud_count"])
+    else:
+        full_df = pd.concat(all_data)
+        # Count occurrences per category
+        fraud_report = (
+            full_df.groupby("merchant_category")
+            .size()
+            .reset_index(name="fraud_count")
+        )
+
+    fraud_report.to_csv(report_file, index=False)
+    print("Fraud by category report updated.")
+
 with DAG(
-    dag_id="reconciliation_dag",
+    "reconciliation_dag",
     start_date=datetime(2024, 1, 1),
-    schedule="0 */6 * * *",   # Every 6 hours
+    schedule_interval="*/5 * * * *", # Every 5 minutes for testing
     catchup=False,
-    tags=["fraud", "reconciliation"]
+    default_args={'retries': 1, 'retry_delay': timedelta(minutes=1)}
 ) as dag:
 
-    task = PythonOperator(
-        task_id="reconcile",
+    reconcile_task = PythonOperator(
+        task_id="reconcile_and_warehouse_move",
         python_callable=reconciliation
     )
+
+    fraud_category_task = PythonOperator(
+        task_id="fraud_by_category_report",
+        python_callable=fraud_by_category
+    )
+
+    reconcile_task >> fraud_category_task
