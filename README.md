@@ -10,11 +10,11 @@ In the rapidly evolving FinTech landscape, real-time fraud detection is a critic
 
 | Component | Technology | Justification |
 |---|---|---|
-| Ingestion | Apache Kafka | Acts as the high-throughput distributed backbone. In FinTech, data loss is unacceptable; Kafka ensures durability and decouples producers from processing engines. |
-| Stream Processing | Apache Spark | Chosen for its Stateful Processing capabilities. Unlike simple filters, Spark can remember user state across micro-batches to detect "Impossible Travel" patterns. |
-| Orchestration | Apache Airflow | Manages the Batch Layer. It ensures financial reconciliation reports are generated only after data has landed safely in the storage layer. |
-| Storage / Sink | Parquet Files | A columnar format that provides extreme compression and high-speed analytical performance for the reporting layer. |
-
+| Ingestion | Apache Kafka | Kafka serves as the high-throughput distributed backbone. In a FinTech environment, the system cannot afford to lose a single transaction record if a downstream consumer fails. Kafka provides the necessary durability and decoupling, allowing producers to send data at high velocity without overwhelming the processing engine.  |
+| Stream Processing | Apache Spark | Chosen for its Stateful Processing capabilities. Unlike simple filters, Spark can remember user state across micro-batches to detect "Impossible Travel" patterns and makes it ideal for complex fraud logic. |
+| Orchestration | Apache Airflow | While Spark handles the "Speed Layer," Airflow manages the "Batch Layer." Financial systems require periodic "source of truth" reports. Airflow orchestrates the movement of validated data into long-term storage and generates reconciliation reports every 6 hours, ensuring the books balance and providing human-readable insights.  |
+| Storage / Sink | Parquet Files | A columnar format that provides extreme compression and high-speed analytical performance for the reporting layer. Since our reports primarily aggregate the Amount column, Parquet allows the system to skip irrelevant metadata during the read process, significantly reducing I/O.  |
+ 
 ---
 
 ## 3. System Architecture (Lambda Architecture)
@@ -82,7 +82,7 @@ Detecting fraud requires tracking user location and spending habits. This consti
 ### Data Governance Strategy
 
 #### Anonymization
-User IDs should be hashed (e.g., salted SHA-256) so the engine detects patterns without knowing real-world identities.
+User IDs should be hashed (e.g., salted SHA-256) so the engine detects patterns without knowing user's real-world identities.
 
 #### Data Minimization
 Only city-level location data is stored, rather than precise GPS coordinates.
@@ -144,7 +144,11 @@ Then trigger:
 reconciliation_dag
 ```
 
-
+## 8. Conclusion
+The implemented Lambda architecture successfully bridges the gap between real-time
+responsiveness and historical accuracy. By leveraging Kafka, Spark, and Airflow, the system
+provides a resilient framework for FinTech security, ensuring that fraud is not only caught in
+milliseconds but also documented for long-term financial integrity. 
 
 
 
