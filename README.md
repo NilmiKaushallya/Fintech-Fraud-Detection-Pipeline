@@ -25,11 +25,7 @@ The system follows a **Lambda Architecture**, combining a **Speed Layer** for im
 Source → Kafka → Spark Streaming → Parquet Storage → Airflow Reporting
 ```
 
-> **[INSERT ARCHITECTURE DIAGRAM HERE]**  
-> Suggested: Screenshot of your hand-drawn or digital diagram showing:
->
-> `Source → Kafka → Spark → Storage → Airflow`
-
+![System Architecture](Images/Bigdata.png)
 ---
 
 ## 4. Event Time vs. Processing Time Handling
