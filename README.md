@@ -82,3 +82,18 @@ Start Stream: spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12
 Generate Data: python transaction_producer.py
 
 Orchestrate: Access Airflow at localhost:8080 and trigger reconciliation_dag.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
