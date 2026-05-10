@@ -117,13 +117,13 @@ docker-compose up -d
 ## 2. Start Stream Processing
 
 ```bash
-spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.x fraud_detection.py
+docker exec -it spark /opt/spark/bin/spark-submit --packages org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.1 /opt/spark-apps/fraud_detection.py
 ```
 
 ## 3. Generate Transaction Data
 
 ```bash
-python transaction_producer.py
+python producer/transaction_producer.py
 ```
 
 ## 4. Run Airflow Orchestration
@@ -145,6 +145,7 @@ The implemented Lambda architecture successfully bridges the gap between real-ti
 responsiveness and historical accuracy. By leveraging Kafka, Spark, and Airflow, the system
 provides a resilient framework for FinTech security, ensuring that fraud is not only caught in
 milliseconds but also documented for long-term financial integrity. 
+
 
 
 

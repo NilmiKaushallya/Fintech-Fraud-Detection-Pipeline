@@ -34,4 +34,4 @@ while True:
     txn = generate_transaction()
     producer.send("transactions", txn)
     print(f"Sent: {txn['location']} - ${txn['amount']}")
-    time.sleep(1) # Faster generation for testing
+    time.sleep(2) # Faster generation for testing

@@ -98,7 +98,7 @@ def fraud_by_category():
 with DAG(
     "reconciliation_dag",
     start_date=datetime(2024, 1, 1),
-    schedule_interval="*/5 * * * *", # Every 5 minutes for testing
+    schedule_interval="0 */6 * * *", # Every 6 hours
     catchup=False,
     default_args={'retries': 1, 'retry_delay': timedelta(minutes=1)}
 ) as dag:
