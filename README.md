@@ -50,10 +50,6 @@ Threshold = max(eventTime) - 10 minutes
 
 The pipeline automatically categorizes fraud attempts to identify high-risk sectors.
 
-### Raw Data Output
-
-> **[INSERT SCREENSHOT OF fraud_by_category.csv HERE]**
-
 ### Categorization Analysis
 
 | Merchant Category | Fraud Count | Risk Profile |
@@ -91,8 +87,6 @@ In compliance with GDPR, transaction logs are moved to a "Warehouse" with a 7-ye
 ## 7. Project Final Reconciliation
 
 The following report confirms that the **Speed Layer** and **Batch Layer** are synchronized.
-
-> **[INSERT SCREENSHOT OF reconciliation.csv HERE]**
 
 ### Validation Formula
 
